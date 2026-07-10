@@ -2,7 +2,7 @@
 
 One random walk, three teleport vectors. This is a single-file interactive website that teaches the difference between **PageRank**, **Personalized PageRank (PPR)**, and **Topic-Sensitive PageRank** by letting you *watch* it: a random surfer walks a live graph, and the only thing that ever changes between the algorithms is **where the surfer teleports when it gets bored**.
 
-**Live demo:** enable GitHub Pages on this repo (see below) and the site is served at `https://<your-username>.github.io/<repo-name>/`.
+**Live demo:** [https://mehrshaad.github.io/pagerank-vs-personalized-pagerank/](https://mehrshaad.github.io/pagerank-vs-personalized-pagerank/)
 
 ## What's inside
 
