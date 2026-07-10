@@ -1,0 +1,1162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PageRank vs Personalized PageRank — an interactive explainer</title>
+<meta name="description" content="Watch a random surfer walk a graph and see exactly how PageRank, Personalized PageRank, and Topic-Sensitive PageRank differ: only the teleport vector changes. Live simulation, convergence, algorithms, and the wider method family." />
+<meta property="og:title" content="PageRank vs Personalized PageRank" />
+<meta property="og:description" content="One random walk, three teleport vectors. An interactive explainer with a live surfer, rank bars, convergence, and algorithms." />
+<meta property="og:type" content="website" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230A1220'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23FF5DA2' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23F6C453'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --bg:#0A1220;
+    --bg2:#0E1728;
+    --panel:#121D33;
+    --line:#22314f;
+    --ink:#EAF0FB;
+    --muted:#8394b4;
+    --faint:#5b6c8c;
+
+    --teal:#3FE0C5;      /* Global PageRank */
+    --pink:#FF5DA2;      /* Personalized / topic */
+    --gold:#F6C453;      /* the surfer */
+
+    --r:16px;
+    --shadow:0 18px 50px -22px rgba(0,0,0,.75);
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --disp:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,-apple-system,sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 78% -10%, rgba(255,93,162,.10), transparent 60%),
+      radial-gradient(1000px 620px at 6% 6%, rgba(63,224,197,.10), transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:var(--body);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:70px;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding:0 clamp(14px,4vw,40px)}
+  a{color:var(--teal);text-decoration:none}
+  a:hover{text-decoration:underline}
+  :focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
+
+  /* ---------- nav ---------- */
+  nav.top{
+    position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);
+    background:rgba(10,18,32,.78);border-bottom:1px solid var(--line);
+  }
+  nav.top .in{max-width:1120px;margin:0 auto;padding:10px clamp(14px,4vw,40px);
+    display:flex;align-items:center;gap:18px;overflow-x:auto;scrollbar-width:none}
+  nav.top .in::-webkit-scrollbar{display:none}
+  nav.top .brand{font-family:var(--disp);font-weight:700;font-size:14px;white-space:nowrap;color:var(--ink)}
+  nav.top .brand i{font-style:normal;color:var(--pink)}
+  nav.top a.nl{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;color:var(--muted);white-space:nowrap;padding:5px 2px}
+  nav.top a.nl:hover{color:var(--ink);text-decoration:none}
+
+  /* ---------- header ---------- */
+  header{padding:52px 0 8px}
+  .eyebrow{
+    font-family:var(--mono);font-size:12px;letter-spacing:.32em;text-transform:uppercase;
+    color:var(--faint);display:flex;align-items:center;gap:10px;margin-bottom:14px;
+  }
+  .eyebrow::before{content:"";width:26px;height:1px;background:linear-gradient(90deg,var(--teal),var(--pink));flex:none}
+  h1{
+    font-family:var(--disp);font-weight:700;letter-spacing:-.02em;line-height:1.03;
+    font-size:clamp(32px,5.6vw,56px);margin:0 0 16px;
+  }
+  h1 .g{color:var(--teal)} h1 .p{color:var(--pink)}
+  .lede{color:var(--muted);max-width:66ch;font-size:clamp(15px,1.6vw,17.5px)}
+  .lede b{color:var(--ink);font-weight:600}
+  .lede .gd{color:var(--gold);font-weight:600}
+
+  /* ---------- sections ---------- */
+  section.block{margin-top:56px;scroll-margin-top:70px}
+  .sec-eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.28em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
+  .sec-eyebrow em{font-style:normal;color:var(--gold)}
+  h2.sec{font-family:var(--disp);font-weight:700;letter-spacing:-.015em;font-size:clamp(22px,3vw,30px);margin:0 0 10px}
+  p.sec-intro{color:var(--muted);max-width:70ch;margin:0 0 20px;font-size:15px}
+  p.sec-intro b{color:var(--ink)}
+
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);
+  }
+  .card-h{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 16px;border-bottom:1px solid var(--line);
+  }
+  .card-h h3{font-family:var(--disp);font-size:15px;font-weight:600;margin:0;letter-spacing:.01em}
+  .card-h .sub{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.06em;text-align:right}
+
+  /* ---------- playground layout ---------- */
+  .stage-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:16px}
+
+  /* ---------- graph ---------- */
+  .graph-wrap{padding:6px 6px 2px}
+  svg.graph{display:block;width:100%;height:auto}
+  .edge{stroke:#2c3d61;stroke-width:1.6;fill:none;marker-end:url(#arrow);transition:stroke .25s}
+  .edge.hot{stroke:var(--gold);stroke-width:2.6}
+  .node circle.body{cursor:pointer;transition:r .35s cubic-bezier(.2,.7,.2,1),fill .35s,filter .35s,stroke .2s}
+  .node .lab{font-family:var(--disp);font-weight:700;font-size:15px;fill:#eaf0fb;pointer-events:none;text-anchor:middle;dominant-baseline:central}
+  .node .val{font-family:var(--mono);font-size:10px;fill:var(--muted);pointer-events:none;text-anchor:middle;transition:y .35s}
+  .node .ring{fill:none;stroke:var(--pink);stroke-width:2.5;opacity:0;transition:opacity .3s,r .35s}
+  .node.home .ring{opacity:1;filter:drop-shadow(0 0 8px rgba(255,93,162,.8))}
+  .node:hover circle.body{stroke:#fff;stroke-width:2}
+  .surfer{fill:var(--gold);filter:drop-shadow(0 0 10px rgba(246,196,83,.9));pointer-events:none}
+  .surfer-glow{fill:var(--gold);opacity:.18;pointer-events:none}
+  .teleport-arc{stroke:var(--gold);stroke-width:2;fill:none;stroke-dasharray:5 5;opacity:0;pointer-events:none;transition:opacity .18s}
+
+  .legend{display:flex;gap:16px;flex-wrap:wrap;padding:8px 16px 14px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .dot{width:11px;height:11px;border-radius:50%;display:inline-block;flex:none}
+
+  /* ---------- controls ---------- */
+  .ctrls{padding:16px;display:flex;flex-direction:column;gap:18px}
+  .k{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:9px}
+  .k .nrm{text-transform:none;letter-spacing:0}
+
+  .toggle{display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+  .toggle button{
+    appearance:none;border:0;background:transparent;color:var(--muted);cursor:pointer;
+    font-family:var(--disp);font-weight:600;font-size:13px;padding:9px 4px;border-radius:9px;transition:.18s;
+  }
+  .toggle button .tiny{display:block;font-family:var(--mono);font-weight:400;font-size:9.5px;letter-spacing:.03em;margin-top:3px;opacity:.7}
+  .toggle button[aria-pressed="true"][data-mode="global"]{background:linear-gradient(180deg,rgba(63,224,197,.22),rgba(63,224,197,.08));color:var(--teal);box-shadow:inset 0 0 0 1px rgba(63,224,197,.4)}
+  .toggle button[aria-pressed="true"][data-mode="ppr"],
+  .toggle button[aria-pressed="true"][data-mode="topic"]{background:linear-gradient(180deg,rgba(255,93,162,.22),rgba(255,93,162,.08));color:var(--pink);box-shadow:inset 0 0 0 1px rgba(255,93,162,.4)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{
+    appearance:none;border:1px solid var(--line);background:var(--bg);color:var(--muted);
+    font-family:var(--mono);font-weight:600;font-size:13px;width:38px;height:38px;border-radius:10px;cursor:pointer;transition:.15s;
+  }
+  .chip:hover{border-color:var(--pink);color:var(--ink)}
+  .chip[aria-pressed="true"]{background:var(--pink);border-color:var(--pink);color:#1a0a13;box-shadow:0 0 0 3px rgba(255,93,162,.18)}
+  .field.disabled{opacity:.4;pointer-events:none;filter:grayscale(.6)}
+  .hint{font-size:12px;color:var(--faint);margin-top:8px}
+
+  .slider-row{display:flex;align-items:center;gap:12px}
+  input[type=range]{flex:1;accent-color:var(--teal);height:4px}
+  .dval{font-family:var(--mono);font-size:14px;color:var(--ink);min-width:44px;text-align:right}
+
+  .btns{display:flex;gap:8px}
+  .btn{
+    flex:1;appearance:none;border:1px solid var(--line);background:var(--bg);color:var(--ink);
+    font-family:var(--disp);font-weight:600;font-size:13px;padding:11px 6px;border-radius:10px;cursor:pointer;transition:.15s;
+  }
+  .btn:hover{border-color:var(--faint)}
+  .btn.primary{background:var(--gold);border-color:var(--gold);color:#241a02}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn.speed{flex:0 0 58px;font-family:var(--mono)}
+
+  /* teleport vector viz */
+  .tele{padding:0 16px 16px}
+  .tele .mini{display:flex;align-items:flex-end;gap:4px;height:56px;padding:10px 8px 8px;background:var(--bg);border:1px solid var(--line);border-radius:10px}
+  .tele .bar{flex:1;background:var(--faint);border-radius:3px 3px 0 0;transition:height .4s,background .3s;min-height:2px;position:relative}
+  .tele .bar .bl{position:absolute;bottom:-15px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;color:var(--faint)}
+  .tele .cap{font-size:12.5px;color:var(--muted);margin:20px 0 0}
+  .tele .cap b{color:var(--ink)}
+
+  /* ---------- rank comparison ---------- */
+  .ranks{padding:16px}
+  .ranks .rows{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+  .rrow{display:grid;grid-template-columns:24px 1fr;gap:12px;align-items:center}
+  .rrow .rl{font-family:var(--disp);font-weight:700;font-size:14px;color:var(--ink)}
+  .track{display:flex;flex-direction:column;gap:5px}
+  .brow{display:grid;grid-template-columns:52px 1fr 54px;align-items:center;gap:9px;font-family:var(--mono);font-size:10.5px}
+  .brow .tag{color:var(--faint);letter-spacing:.06em}
+  .brow .tag.g{color:var(--teal)} .brow .tag.p{color:var(--pink)}
+  .bar-track{height:12px;background:var(--bg);border-radius:6px;position:relative}
+  .bar-fill{height:100%;border-radius:6px;transition:width .55s cubic-bezier(.2,.7,.2,1)}
+  .bar-fill.g{background:linear-gradient(90deg,#1c6d63,var(--teal))}
+  .bar-fill.p{background:linear-gradient(90deg,#8a2b5b,var(--pink))}
+  .bar-val{color:var(--muted);text-align:right}
+  .emp{position:absolute;top:-3px;width:2px;height:18px;background:var(--gold);border-radius:2px;transition:left .3s;box-shadow:0 0 6px rgba(246,196,83,.9)}
+  .emp::after{content:"";position:absolute;top:-4px;left:-2px;width:6px;height:6px;border-radius:50%;background:var(--gold)}
+  .ranks-note{font-size:12.5px;color:var(--faint);margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+  /* ---------- formula ---------- */
+  .formula{padding:18px 16px}
+  .frow{font-family:var(--mono);font-size:clamp(12.5px,1.9vw,15.5px);line-height:2.15;color:var(--muted);overflow-x:auto;white-space:nowrap;padding-bottom:4px}
+  .frow .fl{display:inline-block;width:92px;font-weight:700}
+  .frow.g .fl{color:var(--teal)} .frow.p .fl{color:var(--pink)} .frow.t .fl{color:var(--pink)}
+  .tp{padding:2px 7px;border-radius:6px;font-weight:700}
+  .tp.g{background:rgba(63,224,197,.16);color:var(--teal)}
+  .tp.p{background:rgba(255,93,162,.16);color:var(--pink)}
+  .fnote{font-size:13px;color:var(--faint);margin:12px 0 0;max-width:78ch}
+  .fnote b{color:var(--ink)}
+  .fdivider{height:1px;background:var(--line);margin:16px 0}
+  .matbox{font-family:var(--mono);font-size:clamp(13px,1.9vw,15px);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;white-space:nowrap}
+  .matbox .hl{color:var(--gold)}
+
+  /* ---------- convergence chart ---------- */
+  .conv{padding:16px}
+  svg.chart{display:block;width:100%;height:auto}
+  .axis line{stroke:var(--line);stroke-width:1}
+  .axis text{font-family:var(--mono);font-size:10px;fill:var(--faint)}
+  .conv-line{fill:none;stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round;transition:stroke .3s}
+  .conv-ref{fill:none;stroke:var(--gold);stroke-width:1.6;stroke-dasharray:5 5;opacity:.75}
+  .conv-cap{font-size:13px;color:var(--muted);margin:12px 4px 0}
+  .conv-cap b{color:var(--ink)}
+  .conv-legend{display:flex;gap:18px;font-family:var(--mono);font-size:11px;color:var(--muted);padding:2px 4px 0;flex-wrap:wrap}
+  .conv-legend .sw{display:inline-block;width:18px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+
+  /* ---------- pseudocode tabs ---------- */
+  .algs{padding:16px}
+  .tabbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .tab{
+    appearance:none;border:1px solid var(--line);background:var(--bg);color:var(--muted);
+    font-family:var(--disp);font-weight:600;font-size:13px;padding:9px 14px;border-radius:10px;cursor:pointer;transition:.15s;
+  }
+  .tab[aria-pressed="true"]{background:linear-gradient(180deg,rgba(246,196,83,.2),rgba(246,196,83,.06));color:var(--gold);border-color:rgba(246,196,83,.45)}
+  pre.code{
+    margin:0;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    font-family:var(--mono);font-size:13px;line-height:1.75;color:var(--ink);overflow-x:auto;
+  }
+  pre.code .cm{color:var(--faint)}
+  pre.code .kw{color:var(--pink)}
+  pre.code .fn{color:var(--teal)}
+  pre.code .nm{color:var(--gold)}
+  .alg-note{font-size:13px;color:var(--faint);margin:12px 2px 0;max-width:80ch}
+  .alg-note b{color:var(--ink)}
+  .hideme{display:none}
+
+  /* ---------- family ---------- */
+  .fam-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .fcard{padding:18px 18px 20px;display:flex;flex-direction:column;gap:8px}
+  .fcard .tagline{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--faint);text-transform:uppercase}
+  .fcard h4{font-family:var(--disp);font-size:16.5px;margin:0;font-weight:600;letter-spacing:-.01em;color:var(--ink)}
+  .fcard h4 .accent{color:var(--pink)}
+  .fcard p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.6}
+  .fcard p b{color:var(--ink);font-weight:600}
+  .fcard .try{
+    margin-top:auto;align-self:flex-start;appearance:none;border:1px solid rgba(255,93,162,.5);
+    background:transparent;color:var(--pink);font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+    padding:7px 12px;border-radius:8px;cursor:pointer;transition:.15s;
+  }
+  .fcard .try:hover{background:rgba(255,93,162,.12)}
+
+  table.cmp{width:100%;border-collapse:collapse;margin-top:18px;font-size:13.5px}
+  table.cmp th{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+  table.cmp td{padding:11px 14px;border-bottom:1px solid var(--line);color:var(--muted);vertical-align:top}
+  table.cmp td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+  table.cmp tr:hover td{background:rgba(255,255,255,.02)}
+  table.cmp .yes{color:var(--pink)} table.cmp .no{color:var(--teal)}
+  .tbl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,var(--panel),var(--bg2))}
+  .tbl-scroll table.cmp{margin-top:0}
+  .tbl-scroll td,.tbl-scroll th{min-width:130px}
+
+  /* ---------- applications ---------- */
+  .apps-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .acard{padding:18px 18px 20px}
+  .acard .n{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.18em}
+  .acard h4{font-family:var(--disp);font-size:16.5px;margin:8px 0;font-weight:600;color:var(--ink)}
+  .acard p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.62}
+  .acard p b{color:var(--ink)}
+
+  /* ---------- references / footer ---------- */
+  .refs ol{margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:13.5px;line-height:1.9}
+  .refs li::marker{font-family:var(--mono);color:var(--faint)}
+  .refs i{color:var(--ink);font-style:normal;font-weight:500}
+  footer{margin-top:56px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.04em;line-height:2}
+
+  /* ---------- reveal ---------- */
+  .reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  @media (max-width:900px){
+    .stage-grid{grid-template-columns:1fr}
+    .fam-grid{grid-template-columns:1fr}
+    .apps-grid{grid-template-columns:1fr}
+  }
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *{transition:none!important;animation:none!important}
+    .reveal{opacity:1;transform:none}
+  }
+</style>
+</head>
+<body>
+
+<nav class="top" aria-label="Sections">
+  <div class="in">
+    <span class="brand">PR <i>vs</i> PPR</span>
+    <a class="nl" href="#playground">PLAYGROUND</a>
+    <a class="nl" href="#ranks">RANKS</a>
+    <a class="nl" href="#math">MATH</a>
+    <a class="nl" href="#convergence">CONVERGENCE</a>
+    <a class="nl" href="#algorithms">ALGORITHMS</a>
+    <a class="nl" href="#family">FAMILY</a>
+    <a class="nl" href="#uses">USES</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Graph algorithms · an interactive explainer</div>
+    <h1><span class="g">PageRank</span> vs <span class="p">Personalized PageRank</span></h1>
+    <p class="lede">Both rank nodes by imagining a <span class="gd">random surfer</span> wandering the links. Most of the time the surfer follows an out-edge; every so often it gets bored and <b>teleports</b>. The one and only difference between the two algorithms: <b>where the surfer teleports back to</b>. Restart <i>anywhere</i> and you measure global importance. Restart at <i>one node</i> and you measure importance relative to that node. Restart in a <i>set</i> and you get Topic-Sensitive PageRank. Everything below is computed live — nothing is faked.</p>
+  </header>
+
+  <!-- ================= PLAYGROUND ================= -->
+  <section class="block" id="playground">
+    <div class="sec-eyebrow"><em>01</em> · Playground</div>
+    <h2 class="sec">The random surfer</h2>
+    <p class="sec-intro">The gold dot is the surfer. Solid hops follow links; dashed arcs are teleports. Node size and glow show each node's exact rank for the active mode. <b>Click any node</b> to personalize on it.</p>
+
+    <div class="stage-grid">
+      <div class="card">
+        <div class="card-h">
+          <h3>Live simulation</h3>
+          <span class="sub" id="modeTag">GLOBAL · uniform teleport</span>
+        </div>
+        <div class="graph-wrap">
+          <svg class="graph" id="svg" viewBox="0 0 640 360" role="img" aria-label="Interactive directed graph of nine nodes with a live random surfer">
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" fill="#3a4d75"/>
+              </marker>
+            </defs>
+            <g id="gEdges"></g>
+            <g id="gTele"></g>
+            <g id="gNodes"></g>
+            <g id="gSurfer"></g>
+          </svg>
+        </div>
+        <div class="legend">
+          <span><i class="dot" style="background:var(--teal)"></i> size &amp; color = rank</span>
+          <span><i class="dot" style="background:var(--pink)"></i> restart node(s)</span>
+          <span><i class="dot" style="background:var(--gold)"></i> the surfer</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>Controls</h3><span class="sub">tune the walk</span></div>
+        <div class="ctrls">
+          <div class="field">
+            <span class="k" id="modeLabel">Ranking mode</span>
+            <div class="toggle" id="toggle" role="group" aria-labelledby="modeLabel">
+              <button data-mode="global" aria-pressed="true">PageRank<span class="tiny">restart anywhere</span></button>
+              <button data-mode="ppr" aria-pressed="false">Personalized<span class="tiny">restart at one node</span></button>
+              <button data-mode="topic" aria-pressed="false">Topic-set<span class="tiny">restart in a set</span></button>
+            </div>
+          </div>
+
+          <div class="field" id="homeField">
+            <span class="k" id="homeLabel">Restart target</span>
+            <div class="chips" id="chips" role="group" aria-labelledby="homeLabel"></div>
+            <div class="hint" id="homeHint"></div>
+          </div>
+
+          <div class="field">
+            <label class="k" for="damp">Damping factor <span class="nrm">d</span> — chance of following a link</label>
+            <div class="slider-row">
+              <input type="range" id="damp" min="0.05" max="0.95" step="0.05" value="0.85" />
+              <span class="dval" id="dampVal">0.85</span>
+            </div>
+            <div class="hint">Low d = teleports often, rank hugs the restart nodes. High d = wanders far before restarting.</div>
+          </div>
+
+          <div class="btns">
+            <button class="btn primary" id="playBtn" aria-pressed="true">Pause surfer</button>
+            <button class="btn speed" id="speedBtn" title="Surfer speed">1×</button>
+            <button class="btn" id="resetBtn">Reset samples</button>
+          </div>
+        </div>
+
+        <div class="tele">
+          <span class="k">Teleport vector — where “bored” sends you</span>
+          <div class="mini" id="teleMini" aria-hidden="true"></div>
+          <p class="cap" id="teleCap"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= RANKS ================= -->
+  <section class="block" id="ranks">
+    <div class="sec-eyebrow"><em>02</em> · Side by side</div>
+    <h2 class="sec">Every node's rank, both ways</h2>
+    <p class="sec-intro">Teal bars are global PageRank; pink bars are the current personalization. The <b>gold tick</b> is the live surfer's visit-frequency estimate for the active mode — watch it converge onto the exact bar as samples accumulate. That convergence is not a coincidence: the exact scores <i>are</i> the stationary distribution of the surfer's Markov chain.</p>
+    <div class="card ranks reveal">
+      <div class="card-h" style="padding:0 0 14px;border:0">
+        <h3>Exact scores vs live estimate</h3>
+        <span class="sub" id="samplesTag">samples: 0</span>
+      </div>
+      <div class="rows" id="rankRows"></div>
+      <div class="ranks-note">
+        <span><i class="dot" style="background:var(--gold);width:8px;height:8px"></i> gold tick = live estimate (active mode) — it homes in on the exact bar.</span>
+        <span id="ranksModeNote"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= MATH ================= -->
+  <section class="block" id="math">
+    <div class="sec-eyebrow"><em>03</em> · The math</div>
+    <h2 class="sec">Same equation, one term changes</h2>
+    <p class="sec-intro">All three scores satisfy the same fixed-point equation. The link-following term on the right is identical everywhere — only the highlighted <b>teleport term</b> differs.</p>
+    <div class="card formula reveal">
+      <div class="frow g"><span class="fl">PageRank</span> π(i) = <span class="tp g">(1−d) · 1/N</span> + d · Σ<sub>j→i</sub> π(j) / deg⁺(j)</div>
+      <div class="frow p"><span class="fl">Personalized</span> π<sub>s</sub>(i) = <span class="tp p">(1−d) · e<sub>s</sub>(i)</span> + d · Σ<sub>j→i</sub> π<sub>s</sub>(j) / deg⁺(j)</div>
+      <div class="frow t"><span class="fl">Topic-set</span> π<sub>S</sub>(i) = <span class="tp p">(1−d) · 𝟙[i∈S]/|S|</span> + d · Σ<sub>j→i</sub> π<sub>S</sub>(j) / deg⁺(j)</div>
+      <p class="fnote">Here <b>d</b> is the damping factor (typically 0.85), <b>deg⁺(j)</b> the out-degree of j, and <b>e<sub>s</sub></b> the indicator vector of the source s. PageRank spreads restart mass <b>uniformly</b>, so it measures <b>global</b> importance. Personalized PageRank puts all restart mass on <b>s</b>, so it measures importance <b>relative to s</b> — scores decay with distance from the source.</p>
+      <div class="fdivider"></div>
+      <div class="matbox">π<sub>v</sub> &nbsp;=&nbsp; (1−d) · v · (I − d·P)<sup>−1</sup> &nbsp;&nbsp;<span class="hl">← closed form (row-vector convention, P row-stochastic)</span></div>
+      <p class="fnote">Because the closed form is <b>linear in the teleport vector v</b>, personalization blends: π<sub>αu+βw</sub> = α·π<sub>u</sub> + β·π<sub>w</sub>. This single fact is why Topic-Sensitive PageRank works — precompute a handful of basis vectors offline, then mix them per query at almost zero cost.</p>
+    </div>
+  </section>
+
+  <!-- ================= CONVERGENCE ================= -->
+  <section class="block" id="convergence">
+    <div class="sec-eyebrow"><em>04</em> · Convergence</div>
+    <h2 class="sec">Why iteration works — and how fast</h2>
+    <p class="sec-intro">Power iteration just applies the fixed-point equation repeatedly. The chart plots the L1 error to the exact answer on a <b>log scale</b>, recomputed live for the active mode. The teleport step contracts the error by a factor of <b>d</b> every iteration — which is exactly the slope of the dashed reference line.</p>
+    <div class="card conv reveal">
+      <svg class="chart" id="convChart" viewBox="0 0 660 260" role="img" aria-label="Log-scale convergence of power iteration"></svg>
+      <div class="conv-legend">
+        <span><span class="sw" id="convSw" style="background:var(--teal)"></span>‖p<sub>t</sub> − π‖₁ (live, active mode)</span>
+        <span><span class="sw" style="background:var(--gold);height:0;border-top:2px dashed var(--gold)"></span>geometric reference: err₀ · dᵗ</span>
+      </div>
+      <p class="conv-cap" id="convCap"></p>
+    </div>
+  </section>
+
+  <!-- ================= ALGORITHMS ================= -->
+  <section class="block" id="algorithms">
+    <div class="sec-eyebrow"><em>05</em> · Algorithms</div>
+    <h2 class="sec">Three ways to compute it</h2>
+    <p class="sec-intro">Every variant on this page runs the same algorithms — only the teleport vector <b>e</b> changes. The third one is the reason personalized PageRank scales to billion-node graphs.</p>
+    <div class="card algs reveal">
+      <div class="tabbar" role="tablist">
+        <button class="tab" data-alg="pi" aria-pressed="true">Power iteration</button>
+        <button class="tab" data-alg="mc" aria-pressed="false">Monte Carlo (the live surfer)</button>
+        <button class="tab" data-alg="fp" aria-pressed="false">Forward push (local)</button>
+      </div>
+
+      <div data-panel="pi">
+<pre class="code"><span class="cm"># e — teleport vector: uniform (PR) · one-hot (PPR) · set indicator (TSPR)</span>
+<span class="cm"># A_hat — row-normalized adjacency matrix</span>
+p = e.copy()
+<span class="kw">for</span> t <span class="kw">in</span> range(T):
+    p = (<span class="nm">1</span> - d) * e  +  d * (A_hat.T @ p)
+<span class="kw">return</span> p</pre>
+        <p class="alg-note"><b>Exact and simple.</b> Each iteration touches every edge once — O(|E|) per step — and the error shrinks by ×d per step, so ~⌈1/log₁₀(1/d)⌉ iterations buy one extra digit. This is what the chart above runs.</p>
+      </div>
+
+      <div data-panel="mc" class="hideme">
+<pre class="code">visits = zeros(N)
+v = <span class="fn">sample</span>(e)
+<span class="kw">for</span> t <span class="kw">in</span> range(T):
+    <span class="kw">if</span> rand() &lt; <span class="nm">1</span> - d:  v = <span class="fn">sample</span>(e)              <span class="cm"># bored → restart</span>
+    <span class="kw">else</span>:               v = <span class="fn">random_out_neighbor</span>(v)  <span class="cm"># follow a link</span>
+    visits[v] += <span class="nm">1</span>
+<span class="kw">return</span> visits / visits.sum()                      <span class="cm"># → π as T grows</span></pre>
+        <p class="alg-note"><b>Embarrassingly parallel and streaming-friendly.</b> This is literally what the gold surfer does — the tick marks in the rank panel are this estimator running in your browser. Error decays like 1/√T, so it's great for rough top-k answers on huge graphs.</p>
+      </div>
+
+      <div data-panel="fp" class="hideme">
+<pre class="code"><span class="cm"># Andersen–Chung–Lang 2006 — approximate PPR without touching the whole graph</span>
+p, r = zeros(N), e.copy()          <span class="cm"># p: estimate · r: residual mass</span>
+<span class="kw">while</span> exists u <span class="kw">with</span> r[u] &gt; eps * outdeg(u):
+    p[u] += (<span class="nm">1</span> - d) * r[u]
+    <span class="kw">for</span> w <span class="kw">in</span> out(u):
+        r[w] += d * r[u] / outdeg(u)
+    r[u] = <span class="nm">0</span>
+<span class="kw">return</span> p</pre>
+        <p class="alg-note"><b>Local: the killer feature.</b> Mass starts on the source and only pushes outward while it's still significant, so the run time depends on 1/eps — <b>not on graph size</b>. Sweeping the result by degree-normalized score also yields provably good local community cuts, which is why PPR is the workhorse of local clustering.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FAMILY ================= -->
+  <section class="block" id="family">
+    <div class="sec-eyebrow"><em>06</em> · The family</div>
+    <h2 class="sec">Beyond the pair — related approaches</h2>
+    <p class="sec-intro">Personalized PageRank sits inside a whole family of random-walk and mutual-recursion scores. Most differ only in <b>what restarts, what decays, or what walks</b>.</p>
+
+    <div class="fam-grid">
+      <article class="card fcard reveal">
+        <span class="tagline">Haveliwala · 2002</span>
+        <h4>Topic-Sensitive <span class="accent">PageRank</span></h4>
+        <p>Teleport into a <b>set of pages per topic</b> (sports, health, …), precompute one vector per topic offline, then <b>blend at query time</b> using the linearity of PPR. Personalization at web scale without a per-user computation.</p>
+        <button class="try" id="tryTopic">▶ try it in the playground</button>
+      </article>
+
+      <article class="card fcard reveal">
+        <span class="tagline">Data mining · bioinformatics</span>
+        <h4>Random Walk with Restart</h4>
+        <p><b>The same mathematics as PPR under a different name.</b> The RWR framing dominates in bioinformatics and data mining — prioritizing disease genes on protein networks, image captioning, cross-modal retrieval. If you can read this page, you can read RWR papers.</p>
+      </article>
+
+      <article class="card fcard reveal">
+        <span class="tagline">Kleinberg · 1999</span>
+        <h4>HITS — hubs &amp; authorities</h4>
+        <p>No teleport at all. Two mutually recursive scores on a query-specific subgraph: good <b>hubs</b> point to good <b>authorities</b> and vice versa. Query-dependent like PPR, but the recursion is bidirectional and it's famously more sensitive to spam and topic drift.</p>
+      </article>
+
+      <article class="card fcard reveal">
+        <span class="tagline">Jeh &amp; Widom · 2002</span>
+        <h4>SimRank</h4>
+        <p>“Two nodes are similar if their neighbors are similar.” Equivalent to asking how soon <b>two random walkers</b> starting at each node meet. Gives a pairwise <b>similarity</b> rather than a per-node importance — the natural sibling of PPR for “how alike are u and v?”.</p>
+      </article>
+
+      <article class="card fcard reveal">
+        <span class="tagline">Chung · 2007</span>
+        <h4>Heat-Kernel PageRank</h4>
+        <p>Swap PPR's <b>geometric</b> decay over walk lengths for a <b>Poisson</b> (e<sup>−t</sup>tᵏ/k!) weighting — a diffusion of heat from the seed. Sharper drop-off with distance, which often traces tighter community boundaries in local clustering.</p>
+      </article>
+
+      <article class="card fcard reveal">
+        <span class="tagline">GNNs · 2019 →</span>
+        <h4>PPR inside neural networks</h4>
+        <p><b>APPNP</b> and <b>PPRGo</b> replace stacked message-passing layers with PPR propagation of learned features — decoupling “how far information travels” from network depth, and dodging the over-smoothing that plagues deep GNNs. The 1998 idea, load-bearing in 2020s architectures.</p>
+      </article>
+    </div>
+
+    <div class="tbl-scroll reveal" style="margin-top:18px">
+      <table class="cmp">
+        <thead><tr><th>Method</th><th>Restart / recursion</th><th>Query-dependent</th><th>Answers the question</th><th>Classic use</th></tr></thead>
+        <tbody>
+          <tr><td>PageRank</td><td>uniform teleport</td><td class="no">no</td><td>How important globally?</td><td>web-scale authority</td></tr>
+          <tr><td>Personalized PR / RWR</td><td>one node (or distribution)</td><td class="yes">yes</td><td>How relevant to <i>s</i>?</td><td>recommendations, proximity</td></tr>
+          <tr><td>Topic-Sensitive PR</td><td>topic node set</td><td class="yes">per topic</td><td>How important <i>within a topic</i>?</td><td>topical search ranking</td></tr>
+          <tr><td>HITS</td><td>none — mutual hub/authority recursion</td><td class="yes">yes</td><td>Who links well / is linked well?</td><td>query-subgraph authority</td></tr>
+          <tr><td>SimRank</td><td>two coupled walks meeting</td><td class="yes">pairwise</td><td>How similar are u and v?</td><td>node similarity</td></tr>
+          <tr><td>Heat-Kernel PR</td><td>Poisson-weighted walk lengths</td><td class="yes">yes</td><td>Where does heat from <i>s</i> flow?</td><td>local community detection</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= USES ================= -->
+  <section class="block" id="uses">
+    <div class="sec-eyebrow"><em>07</em> · In the wild</div>
+    <h2 class="sec">Where personalized PageRank earns its keep</h2>
+    <div class="apps-grid">
+      <article class="card acard reveal">
+        <div class="n">RECOMMENDERS</div>
+        <h4>“People / pins / repos like this”</h4>
+        <p>Anchor the walk on a user (or the items they touched) and the top-scoring unvisited nodes are natural recommendations. Twitter's who-to-follow and Pinterest's related-pins systems were built on exactly this restart-at-the-user walk, computed with Monte Carlo at feed speed.</p>
+      </article>
+      <article class="card acard reveal">
+        <div class="n">LOCAL CLUSTERING</div>
+        <h4>Find the community around a seed</h4>
+        <p>Run forward push from a seed, sort nodes by degree-normalized PPR, and sweep for the best cut. You recover the seed's community <b>without ever reading the rest of the graph</b> — with quality guarantees from the Andersen–Chung–Lang analysis.</p>
+      </article>
+      <article class="card acard reveal">
+        <div class="n">GRAPH LEARNING</div>
+        <h4>Propagation layers in GNNs</h4>
+        <p>APPNP-style models predict features with a small MLP, then diffuse the predictions with personalized PageRank. Long-range structure at fixed parameter count — and PPRGo precomputes sparse PPR vectors to make it fast enough for web-scale graphs.</p>
+      </article>
+      <article class="card acard reveal">
+        <div class="n">KNOWLEDGE GRAPHS · RAG</div>
+        <h4>Entity-anchored retrieval</h4>
+        <p>In knowledge-graph question answering and graph-flavored RAG, seed the walk on the entities mentioned in the query; the high-PPR neighborhood is the sub-graph worth feeding to the language model. Relevance-with-distance-decay is precisely what retrieval wants.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ================= REFERENCES ================= -->
+  <section class="block refs" id="refs">
+    <div class="sec-eyebrow"><em>08</em> · Further reading</div>
+    <h2 class="sec">References</h2>
+    <div class="card reveal" style="padding:18px 20px">
+      <ol>
+        <li>Page, Brin, Motwani &amp; Winograd — <i>The PageRank Citation Ranking: Bringing Order to the Web</i>, Stanford InfoLab, 1999.</li>
+        <li>Haveliwala — <i>Topic-Sensitive PageRank</i>, WWW 2002.</li>
+        <li>Jeh &amp; Widom — <i>Scaling Personalized Web Search</i>, WWW 2003.</li>
+        <li>Jeh &amp; Widom — <i>SimRank: A Measure of Structural-Context Similarity</i>, KDD 2002.</li>
+        <li>Kleinberg — <i>Authoritative Sources in a Hyperlinked Environment</i> (HITS), JACM 1999.</li>
+        <li>Andersen, Chung &amp; Lang — <i>Local Graph Partitioning using PageRank Vectors</i>, FOCS 2006.</li>
+        <li>Gasteiger (Klicpera), Bojchevski &amp; Günnemann — <i>Predict then Propagate: Graph Neural Networks meet Personalized PageRank</i> (APPNP), ICLR 2019. <a href="https://arxiv.org/abs/1810.05997" rel="noopener">arXiv:1810.05997</a></li>
+        <li>Gleich — <i>PageRank Beyond the Web</i>, SIAM Review 2015 — the definitive survey. <a href="https://arxiv.org/abs/1407.5107" rel="noopener">arXiv:1407.5107</a></li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    single self-contained HTML file · zero dependencies, zero build step · all numbers computed live in your browser<br/>
+    MIT licensed — fork it, remix it, teach with it
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   [math-core] — pure functions, no DOM. Extractable for tests.
+   ============================================================ */
+const NODE_DEFS = [
+  ["A", 95,110],["B",210, 80],["C",185,200],["D", 90,265],
+  ["E",315,170],
+  ["F",455, 90],["G",575,150],["H",500,270],["I",395,195]
+];
+const NAMES = NODE_DEFS.map(p=>p[0]);
+const N = NODE_DEFS.length;
+const IDX = {}; NAMES.forEach((n,i)=>IDX[n]=i);
+const EDGES = [
+  ["A","B"],["B","C"],["C","A"],["A","D"],["D","C"],["B","D"],
+  ["C","E"],["D","E"],
+  ["E","F"],["E","I"],
+  ["F","G"],["G","H"],["H","F"],["F","I"],["I","G"],["H","I"],
+  ["I","A"]
+].map(e=>[IDX[e[0]], IDX[e[1]]]);
+const OUT = Array.from({length:N},()=>[]);
+EDGES.forEach(([a,b])=>OUT[a].push(b));
+const DEG = OUT.map(o=>o.length);
+
+function prStep(p, tele, d){
+  const np = new Array(N);
+  let dangling = 0;
+  for(let j=0;j<N;j++) if(DEG[j]===0) dangling += p[j];
+  for(let i=0;i<N;i++) np[i] = (1-d)*tele[i] + d*dangling*tele[i];
+  for(let j=0;j<N;j++){
+    if(DEG[j]===0) continue;
+    const share = d * p[j] / DEG[j];
+    for(const i of OUT[j]) np[i] += share;
+  }
+  return np;
+}
+function pagerank(tele, d, iters){
+  iters = iters || 150;
+  let p = new Array(N).fill(1/N);
+  for(let it=0; it<iters; it++) p = prStep(p, tele, d);
+  return p;
+}
+const UNIFORM = new Array(N).fill(1/N);
+function oneHot(s){ const v=new Array(N).fill(0); v[s]=1; return v; }
+function setVec(set){
+  const arr=[...set];
+  if(!arr.length) return UNIFORM.slice();
+  const v=new Array(N).fill(0);
+  arr.forEach(i=>v[i]=1/arr.length);
+  return v;
+}
+if (typeof module!=="undefined" && module.exports){
+  module.exports = {N, NAMES, OUT, DEG, prStep, pagerank, UNIFORM, oneHot, setVec};
+}
+/* [/math-core] */
+</script>
+
+<script>
+(function(){
+"use strict";
+if (typeof document === "undefined") return; // allow math-core reuse in node
+
+/* ---------- state ---------- */
+const state = {
+  mode: "global",            // 'global' | 'ppr' | 'topic'
+  home: 0,                   // single-node personalization
+  set: new Set([5,6]),       // topic-set personalization (F,G)
+  d: 0.85,
+  playing: true,
+  speed: 1
+};
+const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+function personalVec(){
+  return state.mode==="topic" ? setVec(state.set) : oneHot(state.home);
+}
+function activeTele(){
+  return state.mode==="global" ? UNIFORM : personalVec();
+}
+
+let prG = pagerank(UNIFORM, state.d);
+let prP = pagerank(personalVec(), state.d);
+function recompute(){
+  prG = pagerank(UNIFORM, state.d);
+  prP = pagerank(personalVec(), state.d);
+}
+function activePR(){ return state.mode==="global" ? prG : prP; }
+
+/* ---------- color helpers ---------- */
+function hx(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+function mix(a,b,t){const A=hx(a),B=hx(b);return `rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')})`;}
+function rampColor(t, personalized){
+  t=Math.max(0,Math.min(1,t));
+  if(personalized){
+    return t<0.5 ? mix("#241628","#8a2b5b",t*2) : mix("#8a2b5b","#FF7DB6",(t-0.5)*2);
+  }
+  return t<0.5 ? mix("#132a33","#1c6d63",t*2) : mix("#1c6d63","#57F0D8",(t-0.5)*2);
+}
+
+/* ---------- SVG graph ---------- */
+const SVGNS="http://www.w3.org/2000/svg";
+const gEdges=document.getElementById("gEdges");
+const gNodes=document.getElementById("gNodes");
+const gSurfer=document.getElementById("gSurfer");
+const gTele=document.getElementById("gTele");
+function nodeXY(i){return {x:NODE_DEFS[i][1], y:NODE_DEFS[i][2]};}
+
+const edgeEls=[];
+EDGES.forEach(([a,b])=>{
+  const p=document.createElementNS(SVGNS,"path");
+  p.setAttribute("class","edge");
+  gEdges.appendChild(p);
+  edgeEls.push({el:p,a,b});
+});
+let radii = new Array(N).fill(16);
+function layoutEdges(){
+  edgeEls.forEach(o=>{
+    const A=nodeXY(o.a), B=nodeXY(o.b);
+    const dx=B.x-A.x, dy=B.y-A.y, len=Math.hypot(dx,dy)||1;
+    const ux=dx/len, uy=dy/len;
+    const rA=radii[o.a]+3, rB=radii[o.b]+7;   // +7 leaves room for arrowhead
+    const x1=A.x+ux*rA, y1=A.y+uy*rA, x2=B.x-ux*rB, y2=B.y-uy*rB;
+    const mx=(x1+x2)/2 - uy*10, my=(y1+y2)/2 + ux*10;
+    o.el.setAttribute("d",`M${x1.toFixed(1)} ${y1.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`);
+  });
+}
+
+const nodeEls=[];
+NODE_DEFS.forEach((p,i)=>{
+  const g=document.createElementNS(SVGNS,"g");
+  g.setAttribute("class","node");
+  g.setAttribute("transform",`translate(${p[1]},${p[2]})`);
+  g.setAttribute("tabindex","0");
+  g.setAttribute("role","button");
+  g.setAttribute("aria-label","Node "+NAMES[i]+" — click to personalize on it");
+
+  const ring=document.createElementNS(SVGNS,"circle");
+  ring.setAttribute("class","ring"); ring.setAttribute("r",26);
+
+  const c=document.createElementNS(SVGNS,"circle");
+  c.setAttribute("class","body");
+  c.setAttribute("r",16); c.setAttribute("stroke","#0A1220"); c.setAttribute("stroke-width",1.5);
+
+  const lab=document.createElementNS(SVGNS,"text");
+  lab.setAttribute("class","lab"); lab.setAttribute("y",-1); lab.textContent=NAMES[i];
+
+  const val=document.createElementNS(SVGNS,"text");
+  val.setAttribute("class","val"); val.setAttribute("y",30);
+
+  const title=document.createElementNS(SVGNS,"title");
+
+  g.appendChild(ring);g.appendChild(c);g.appendChild(lab);g.appendChild(val);g.appendChild(title);
+  g.addEventListener("click",()=>nodeClicked(i));
+  g.addEventListener("keydown",ev=>{ if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();nodeClicked(i);} });
+  gNodes.appendChild(g);
+  nodeEls.push({g,c,lab,val,ring,title});
+});
+
+const surferGlow=document.createElementNS(SVGNS,"circle");
+surferGlow.setAttribute("class","surfer-glow"); surferGlow.setAttribute("r",16);
+const surfer=document.createElementNS(SVGNS,"circle");
+surfer.setAttribute("class","surfer"); surfer.setAttribute("r",6);
+gSurfer.appendChild(surferGlow); gSurfer.appendChild(surfer);
+
+const teleArc=document.createElementNS(SVGNS,"path");
+teleArc.setAttribute("class","teleport-arc"); gTele.appendChild(teleArc);
+
+/* ---------- rank rows ---------- */
+const rankRows=document.getElementById("rankRows");
+const rowRefs=[];
+NAMES.forEach(n=>{
+  const row=document.createElement("div"); row.className="rrow";
+  row.innerHTML =
+    '<div class="rl">'+n+'</div>'+
+    '<div class="track">'+
+      '<div class="brow"><span class="tag g">PR</span>'+
+        '<div class="bar-track"><div class="bar-fill g"></div><div class="emp g" style="display:none"></div></div>'+
+        '<span class="bar-val g"></span></div>'+
+      '<div class="brow"><span class="tag p pTag">PPR</span>'+
+        '<div class="bar-track"><div class="bar-fill p"></div><div class="emp p" style="display:none"></div></div>'+
+        '<span class="bar-val p"></span></div>'+
+    '</div>';
+  rankRows.appendChild(row);
+  rowRefs.push({
+    gFill:row.querySelector(".bar-fill.g"), pFill:row.querySelector(".bar-fill.p"),
+    gVal:row.querySelector(".bar-val.g"), pVal:row.querySelector(".bar-val.p"),
+    gEmp:row.querySelector(".emp.g"), pEmp:row.querySelector(".emp.p"),
+    pTag:row.querySelector(".pTag")
+  });
+});
+
+/* ---------- chips ---------- */
+const chipsBox=document.getElementById("chips");
+const chipEls=[];
+NAMES.forEach((n,i)=>{
+  const b=document.createElement("button");
+  b.className="chip"; b.textContent=n;
+  b.setAttribute("aria-pressed","false");
+  b.addEventListener("click",()=>chipClicked(i));
+  chipsBox.appendChild(b);
+  chipEls.push(b);
+});
+
+/* ---------- teleport mini bars ---------- */
+const teleMini=document.getElementById("teleMini");
+const teleBars=[];
+NAMES.forEach(n=>{
+  const bar=document.createElement("div"); bar.className="bar";
+  const bl=document.createElement("span"); bl.className="bl"; bl.textContent=n;
+  bar.appendChild(bl); teleMini.appendChild(bar); teleBars.push(bar);
+});
+
+/* ---------- interactions ---------- */
+function nodeClicked(i){
+  if(state.mode==="topic"){ toggleSetMember(i); return; }
+  state.home=i;
+  if(state.mode==="global") state.mode="ppr";
+  paramsChanged();
+}
+function chipClicked(i){
+  if(state.mode==="topic"){ toggleSetMember(i); return; }
+  state.home=i;
+  paramsChanged();
+}
+function toggleSetMember(i){
+  if(state.set.has(i)){
+    if(state.set.size<=1) return;      // keep at least one restart node
+    state.set.delete(i);
+  } else state.set.add(i);
+  paramsChanged();
+}
+function setMode(m){
+  if(state.mode===m) return;
+  state.mode=m;
+  paramsChanged();
+}
+function paramsChanged(){
+  recompute(); resetSamples(); renderAll();
+}
+
+document.querySelectorAll("#toggle button").forEach(b=>{
+  b.addEventListener("click",()=>setMode(b.dataset.mode));
+});
+const damp=document.getElementById("damp");
+damp.addEventListener("input",()=>{ state.d=parseFloat(damp.value); paramsChanged(); });
+
+const playBtn=document.getElementById("playBtn");
+playBtn.addEventListener("click",()=>{
+  state.playing=!state.playing;
+  playBtn.textContent = state.playing?"Pause surfer":"Play surfer";
+  playBtn.setAttribute("aria-pressed", String(state.playing));
+  if(state.playing) scheduleStep();
+});
+const speedBtn=document.getElementById("speedBtn");
+speedBtn.addEventListener("click",()=>{
+  state.speed = state.speed>=4 ? 1 : state.speed*2;
+  speedBtn.textContent = state.speed+"×";
+});
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  resetSamples(); renderEmpirical();
+  document.getElementById("samplesTag").textContent="samples: 0";
+});
+document.getElementById("tryTopic").addEventListener("click",()=>{
+  state.mode="topic"; paramsChanged();
+  document.getElementById("playground").scrollIntoView({behavior:reduce?"auto":"smooth"});
+});
+
+/* tab switcher */
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(o=>o.setAttribute("aria-pressed", String(o===t)));
+    document.querySelectorAll("[data-panel]").forEach(p=>{
+      p.classList.toggle("hideme", p.dataset.panel!==t.dataset.alg);
+    });
+  });
+});
+
+/* ---------- renderers ---------- */
+function personalLabel(){
+  if(state.mode==="topic"){
+    return "TSPR";
+  }
+  return "PPR";
+}
+function personalDesc(){
+  if(state.mode==="topic"){
+    const names=[...state.set].sort((a,b)=>a-b).map(i=>NAMES[i]).join(",");
+    return "topic set {"+names+"}";
+  }
+  return "home = "+NAMES[state.home];
+}
+
+function renderGraph(){
+  const pr = activePR();
+  const personalized = state.mode!=="global";
+  const max = Math.max.apply(null, pr);
+  const min = Math.min.apply(null, pr);
+  const span = (max-min)||1;
+  nodeEls.forEach((ne,i)=>{
+    const t = (pr[i]-min)/span;
+    const r = 12 + 18*t;
+    radii[i]=r;
+    ne.c.setAttribute("r", r.toFixed(1));
+    ne.c.setAttribute("fill", rampColor(t, personalized));
+    ne.c.style.filter = t>0.6
+      ? `drop-shadow(0 0 ${6+10*t}px ${personalized?"rgba(255,93,162,.6)":"rgba(63,224,197,.55)"})`
+      : "none";
+    ne.val.textContent = pr[i].toFixed(3);
+    ne.val.setAttribute("y", (r+13).toFixed(0));
+    ne.ring.setAttribute("r",(r+7).toFixed(1));
+    ne.title.textContent = NAMES[i]+"  PR="+prG[i].toFixed(4)+"  "+personalLabel()+"="+prP[i].toFixed(4);
+    const isRestart = personalized && (state.mode==="topic" ? state.set.has(i) : i===state.home);
+    ne.g.classList.toggle("home", isRestart);
+  });
+  layoutEdges();
+  document.getElementById("modeTag").textContent =
+    state.mode==="global" ? "GLOBAL · uniform teleport"
+    : (state.mode==="ppr" ? "PERSONALIZED · " : "TOPIC-SENSITIVE · ") + personalDesc();
+}
+
+function renderRanks(){
+  const scaleMax = Math.max(Math.max.apply(null,prG), Math.max.apply(null,prP)) * 1.02;
+  rowRefs.forEach((r,i)=>{
+    r.gFill.style.width = (prG[i]/scaleMax*100).toFixed(2)+"%";
+    r.pFill.style.width = (prP[i]/scaleMax*100).toFixed(2)+"%";
+    r.gVal.textContent = prG[i].toFixed(3);
+    r.pVal.textContent = prP[i].toFixed(3);
+    r.pTag.textContent = personalLabel();
+  });
+  document.getElementById("ranksModeNote").textContent =
+    state.mode==="global"
+      ? "Pink bars show "+personalDesc()+" for contrast — switch modes above to make it active."
+      : "Pink = "+personalDesc()+".";
+  renderEmpirical(scaleMax);
+}
+
+function renderEmpirical(scaleMax){
+  if(scaleMax===undefined){
+    scaleMax = Math.max(Math.max.apply(null,prG), Math.max.apply(null,prP))*1.02;
+  }
+  const tot = totalVisits||1;
+  rowRefs.forEach((r,i)=>{
+    const empRank = visits[i]/tot;
+    const showG = state.mode==="global" && totalVisits>5;
+    const showP = state.mode!=="global" && totalVisits>5;
+    r.gEmp.style.display = showG?"block":"none";
+    r.pEmp.style.display = showP?"block":"none";
+    const pct = Math.min(99.5,(empRank/scaleMax*100));
+    const left = pct.toFixed(2)+"%";
+    if(showG) r.gEmp.style.left=left;
+    if(showP) r.pEmp.style.left=left;
+  });
+}
+
+function renderTele(){
+  const tele = activeTele();
+  const maxT = Math.max.apply(null, tele);
+  teleBars.forEach((bar,i)=>{
+    let h;
+    if(state.mode==="global") h=42;
+    else h = tele[i]>0 ? Math.max(10, tele[i]/maxT*100) : 3;
+    bar.style.height=h+"%";
+    bar.style.background = state.mode==="global"
+      ? "var(--teal)"
+      : (tele[i]>0 ? "var(--pink)" : "var(--faint)");
+  });
+  const cap=document.getElementById("teleCap");
+  if(state.mode==="global"){
+    cap.innerHTML='All bars equal: a bored surfer restarts on a <b>uniformly random</b> node — no favorites.';
+  } else if(state.mode==="ppr"){
+    cap.innerHTML='One tall bar: <b>100% of restarts land on '+NAMES[state.home]+'</b>. That single spike is the whole difference.';
+  } else {
+    cap.innerHTML='Restart mass split evenly over <b>'+personalDesc()+'</b> — this is exactly Topic-Sensitive PageRank.';
+  }
+}
+
+function renderControls(){
+  document.querySelectorAll("#toggle button").forEach(b=>{
+    b.setAttribute("aria-pressed", String(b.dataset.mode===state.mode));
+  });
+  chipEls.forEach((c,i)=>{
+    const on = state.mode==="topic" ? state.set.has(i) : (state.mode==="ppr" && i===state.home);
+    c.setAttribute("aria-pressed", String(on));
+  });
+  const hf=document.getElementById("homeField");
+  hf.classList.toggle("disabled", state.mode==="global");
+  document.getElementById("homeHint").textContent =
+    state.mode==="global" ? "Switch to Personalized or Topic-set to choose restart nodes."
+    : state.mode==="ppr" ? "Click a chip — or any node in the graph — to set the surfer's home."
+    : "Toggle several chips (or nodes) to build the topic set. At least one stays on.";
+  document.getElementById("dampVal").textContent = state.d.toFixed(2);
+}
+
+/* ---------- convergence chart ---------- */
+const convSvg=document.getElementById("convChart");
+const CW=660, CH=260, PADL=52, PADR=14, PADT=14, PADB=34;
+const T_MAX=40, DECADES=12; // y: 1e0 .. 1e-12
+function cx(t){ return PADL + (CW-PADL-PADR)*t/T_MAX; }
+function cy(err){
+  const lg = Math.max(-DECADES, Math.min(0, Math.log10(Math.max(err,1e-300))));
+  return PADT + (CH-PADT-PADB)*(-lg)/DECADES;
+}
+function el(n,attrs){
+  const e=document.createElementNS(SVGNS,n);
+  for(const k in attrs) e.setAttribute(k,attrs[k]);
+  return e;
+}
+function drawConvergence(){
+  while(convSvg.firstChild) convSvg.removeChild(convSvg.firstChild);
+  const axis=el("g",{class:"axis"});
+  // horizontal decade lines
+  for(let dcd=0; dcd<=DECADES; dcd+=3){
+    const y=PADT+(CH-PADT-PADB)*dcd/DECADES;
+    axis.appendChild(el("line",{x1:PADL,x2:CW-PADR,y1:y,y2:y}));
+    const t=el("text",{x:PADL-8,y:y+3,"text-anchor":"end"});
+    t.textContent = dcd===0 ? "10⁰" : "10⁻"+dcd;
+    axis.appendChild(t);
+  }
+  // vertical iteration lines
+  for(let it=0; it<=T_MAX; it+=10){
+    const x=cx(it);
+    axis.appendChild(el("line",{x1:x,x2:x,y1:PADT,y2:CH-PADB}));
+    const t=el("text",{x:x,y:CH-PADB+16,"text-anchor":"middle"});
+    t.textContent=it;
+    axis.appendChild(t);
+  }
+  const xl=el("text",{x:(PADL+CW-PADR)/2,y:CH-4,"text-anchor":"middle"});
+  xl.textContent="iterations";
+  axis.appendChild(xl);
+  convSvg.appendChild(axis);
+
+  // series
+  const tele=activeTele();
+  const pstar=pagerank(tele,state.d,400);
+  let p=new Array(N).fill(1/N);
+  const errs=[];
+  for(let t=0;t<=T_MAX;t++){
+    let e=0; for(let i=0;i<N;i++) e+=Math.abs(p[i]-pstar[i]);
+    errs.push(Math.max(e,1e-16));
+    p=prStep(p,tele,state.d);
+  }
+  // theoretical reference err0 * d^t
+  let ref="";
+  for(let t=0;t<=T_MAX;t++){
+    const v=errs[0]*Math.pow(state.d,t);
+    if(v<1e-13) break;
+    ref+=(t? " L":"M")+cx(t).toFixed(1)+" "+cy(v).toFixed(1);
+  }
+  convSvg.appendChild(el("path",{class:"conv-ref",d:ref}));
+  // live line
+  let dstr="";
+  for(let t=0;t<=T_MAX;t++){
+    if(errs[t]<=1e-13 && t>0){ dstr+=" L"+cx(t).toFixed(1)+" "+cy(1e-13).toFixed(1); break; }
+    dstr+=(t? " L":"M")+cx(t).toFixed(1)+" "+cy(errs[t]).toFixed(1);
+  }
+  const color = state.mode==="global" ? "var(--teal)" : "var(--pink)";
+  convSvg.appendChild(el("path",{class:"conv-line",d:dstr,stroke:color}));
+  document.getElementById("convSw").style.background = state.mode==="global" ? "#3FE0C5" : "#FF5DA2";
+
+  const perDigit = Math.ceil(1/(-Math.log10(state.d)));
+  document.getElementById("convCap").innerHTML =
+    "Right now <b>d = "+state.d.toFixed(2)+"</b> → the error contracts by ×"+state.d.toFixed(2)+
+    " per iteration ≈ <b>"+perDigit+" iteration"+(perDigit>1?"s":"")+" per extra digit</b> of accuracy. "+
+    "Drag d in the playground and watch the slope change — smaller d converges faster <i>and</i> stays more local.";
+}
+
+/* ---------- surfer simulation ---------- */
+let cur=0;
+let visits=new Array(N).fill(0);
+let totalVisits=0;
+let stepTimer=null;
+function resetSamples(){ visits=new Array(N).fill(0); totalVisits=0;
+  document.getElementById("samplesTag").textContent="samples: 0"; }
+
+function sampleTeleTarget(){
+  if(state.mode==="global") return Math.floor(Math.random()*N);
+  if(state.mode==="ppr") return state.home;
+  const arr=[...state.set];
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+function nextNode(){
+  if(Math.random() < (1-state.d) || DEG[cur]===0){
+    return {to: sampleTeleTarget(), teleport:true};
+  }
+  const o=OUT[cur];
+  return {to:o[Math.floor(Math.random()*o.length)], teleport:false};
+}
+function setSurfer(x,y){
+  surfer.setAttribute("cx",x); surfer.setAttribute("cy",y);
+  surferGlow.setAttribute("cx",x); surferGlow.setAttribute("cy",y);
+}
+function moveTo(from,to,teleport,cb){
+  const A=nodeXY(from), B=nodeXY(to);
+  if(teleport && from!==to){
+    teleArc.setAttribute("d",`M${A.x} ${A.y} Q ${(A.x+B.x)/2} ${Math.min(A.y,B.y)-60} ${B.x} ${B.y}`);
+    teleArc.style.opacity="0.8";
+    setTimeout(()=>{teleArc.style.opacity="0";},240);
+  }
+  if(reduce){ setSurfer(B.x,B.y); cb(); return; }
+  const dur=(teleport?260:340)/state.speed;
+  const t0=performance.now();
+  const ease=t=>1-Math.pow(1-t,3);
+  (function frame(now){
+    const k=Math.min(1,(now-t0)/dur), e=ease(k);
+    let x,y;
+    if(teleport && from!==to){
+      x=A.x+(B.x-A.x)*e;
+      const arcY=Math.min(A.y,B.y)-60;
+      y=(1-e)*(1-e)*A.y + 2*(1-e)*e*arcY + e*e*B.y;
+    } else {
+      x=A.x+(B.x-A.x)*e; y=A.y+(B.y-A.y)*e;
+    }
+    setSurfer(x,y);
+    if(k<1) requestAnimationFrame(frame); else cb();
+  })(t0);
+}
+function flashEdge(a,b){
+  const m=edgeEls.find(o=>o.a===a&&o.b===b);
+  if(!m) return;
+  m.el.classList.add("hot");
+  setTimeout(()=>m.el.classList.remove("hot"),280);
+}
+function step(){
+  if(!state.playing || document.hidden){ return; }
+  const nx=nextNode();
+  if(!nx.teleport) flashEdge(cur,nx.to);
+  moveTo(cur,nx.to,nx.teleport,()=>{
+    cur=nx.to;
+    visits[cur]++; totalVisits++;
+    if(totalVisits%3===0){
+      renderEmpirical();
+      document.getElementById("samplesTag").textContent="samples: "+totalVisits;
+    }
+    scheduleStep();
+  });
+}
+function scheduleStep(){
+  clearTimeout(stepTimer);
+  if(!state.playing) return;
+  stepTimer=setTimeout(step,(reduce?60:200)/state.speed);
+}
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden && state.playing) scheduleStep();
+});
+
+/* ---------- reveal on scroll ---------- */
+if("IntersectionObserver" in window && !reduce){
+  const io=new IntersectionObserver(es=>{
+    es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target);} });
+  },{threshold:.12});
+  document.querySelectorAll(".reveal").forEach(x=>io.observe(x));
+} else {
+  document.querySelectorAll(".reveal").forEach(x=>x.classList.add("in"));
+}
+
+/* ---------- render all + boot ---------- */
+function renderAll(){
+  renderControls(); renderTele(); renderGraph(); renderRanks(); drawConvergence();
+}
+setSurfer(nodeXY(0).x, nodeXY(0).y);
+renderAll();
+scheduleStep();
+
+})();
+</script>
+</body>
+</html>
